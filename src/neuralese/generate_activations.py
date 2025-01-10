@@ -1,11 +1,9 @@
 # %%
-# from einops import einsum
-from einops import einsum
-from jaxtyping import Float
-from torch import Tensor
+from transformer_lens import HookedTransformer
 
 
-def multiply_some_tensors(
-    a: Float[Tensor, "batch dim"], b: Float[Tensor, "batch dim"]
-) -> Float[Tensor, " batch"]:
-    return einsum(a, b, "batch dim, batch dim -> batch")
+def load_model(model_name: str, device: str) -> HookedTransformer:
+    return HookedTransformer.from_pretrained(model_name, device=device)
+
+
+# %%

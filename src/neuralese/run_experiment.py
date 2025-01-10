@@ -3,12 +3,13 @@
 #!%autoreload 2
 import torch as t
 
-from neuralese.generate_activations import multiply_some_tensors
+from neuralese.generate_activations import load_model
 
-device = t.device("cuda" if t.cuda.is_available() else "cpu")
-a = t.randn(10, 10, device=device)
-b = t.randn(10, 10, device=device)
-c = multiply_some_tensors(a, b)
-print(c)
+device = "cuda" if t.cuda.is_available() else "cpu"
+model = load_model("gpt2", device)
+
+output = model.generate("Hello, world!", max_new_tokens=10)
+print(output)
+
 
 # %%
