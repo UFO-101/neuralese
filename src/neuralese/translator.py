@@ -55,11 +55,11 @@ class Translator(nn.Module):
 
     @classmethod
     def from_pretrained(cls, config: Config, device: str) -> "Translator":
-        state_dict = t.load(config.save_path)
+        state_dict = t.load(config.save_path, weights_only=True)
         target_model_dim = state_dict["target_model_dim"]
         translator_model_dim = state_dict["translator_model_dim"]
         translator = cls(target_model_dim, translator_model_dim, config, device)
-        translator.load_state_dict(state_dict)
+        translator.load_state_dict(state_dict, strict=False)
         return translator
 
     def save_trained(self) -> None:

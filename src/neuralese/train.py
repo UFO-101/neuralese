@@ -14,6 +14,7 @@ from neuralese.conversations_data import (
     process_conversations,
     tokenize_conversations,
 )
+from neuralese.evaluate import measure_neuralese_reconstruction
 from neuralese.translator import Translator, load_model
 
 
@@ -29,7 +30,11 @@ def get_neuralese_loss(
     target_attn_mask_BS = target_tokenized["attn_mask"].to(translator.device)
 
     with t.no_grad():
-        input_neuralese_BSd = target(target_tokens_BS, stop_at_layer=config.mid_layer)
+        input_neuralese_BSd = target(
+            target_tokens_BS,
+            stop_at_layer=config.mid_layer,
+            attention_mask=target_attn_mask_BS,
+        )
     # Run the neuralese through the translator model
     output_neuralese_BSd = translator.forward_neuralese(
         input_neuralese_BSd, target_attn_mask_BS
@@ -42,7 +47,7 @@ def get_neuralese_loss(
     # Ignore token positions which are masked out or where the next token is masked out
     next_token_mask_BS = target_attn_mask_BS[:, :-1] & target_attn_mask_BS[:, 1:]
     masked_next_token_loss_BS = next_token_loss_BS * next_token_mask_BS
-    return masked_next_token_loss_BS.mean()
+    return masked_next_token_loss_BS.sum() / next_token_mask_BS.sum()
 
 
 def get_kl_div_loss(
@@ -61,16 +66,20 @@ def get_kl_div_loss(
 
     # Minimize the KL divergence between the original_translator_model and the translator_model
     with t.no_grad():
-        orig_logits = orig_translator(translator_tokens_BS)
+        orig_logits = orig_translator(
+            translator_tokens_BS, attention_mask=translatr_attn_mask_BS
+        )
         orig_log_probs_BSV = t.nn.functional.log_softmax(orig_logits, dim=-1)
-    translator_logits = translator.forward_tokens(translator_tokens_BS)
+    translator_logits = translator.forward_tokens(
+        translator_tokens_BS, attention_mask=translatr_attn_mask_BS
+    )
     translator_log_probs_BSV = t.nn.functional.log_softmax(translator_logits, dim=-1)
 
     kl_divergence_BS = t.nn.functional.kl_div(
         translator_log_probs_BSV, orig_log_probs_BSV, reduction="none", log_target=True
     ).sum(dim=-1)
     masked_kl_divergence_BS = kl_divergence_BS * translatr_attn_mask_BS
-    return masked_kl_divergence_BS.mean()
+    return masked_kl_divergence_BS.sum() / translatr_attn_mask_BS.sum()
 
 
 def train_translator(
@@ -92,17 +101,25 @@ def train_translator(
 
         optim.zero_grad()
         kl_div_loss = get_kl_div_loss(batch, orig_translator, translator, config)
-        if kl_div_loss.item() > 1e-8:
-            kl_div_loss.backward()
-            optim.step()
+        kl_div_loss *= config.kl_weight
+        kl_div_loss.backward()
+        optim.step()
 
-        wandb.log(
-            {
-                "neuralese_loss": neuralese_loss,
-                "kl_div_loss": kl_div_loss,
-                "total_loss": neuralese_loss + kl_div_loss,
-            }
-        )
+        if i % config.eval_interval == 0:
+            mse, mse_normalized, fvu = measure_neuralese_reconstruction(
+                dataloader, target, translator, config
+            )
+            wandb.log(
+                {
+                    "mse": mse,
+                    "mse_normalized": mse_normalized,
+                    "fvu": fvu,
+                    "neuralese_loss": neuralese_loss,
+                    "kl_div_loss": kl_div_loss,
+                }
+            )
+        else:
+            wandb.log({"neuralese_loss": neuralese_loss, "kl_div_loss": kl_div_loss})
 
         if i - last_save >= config.save_interval and neuralese_loss < best_neura_loss:
             translator.save_trained()
@@ -146,8 +163,8 @@ def run_training(config: Config, device: str) -> Translator:
 
 
 if __name__ == "__main__":
-    device = "cuda:5" if t.cuda.is_available() else "cpu"
+    device = "cuda:6" if t.cuda.is_available() else "cpu"
     datatime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    config = Config.from_repo_path_str(f".translators/{datatime_str}")
+    config = Config.from_repo_path_str(f".translators/{datatime_str}.pt")
     # config = SmallModelConfig.from_repo_path_str(f".translators/{datatime_str}.pt")
     train_translator = run_training(config, device)

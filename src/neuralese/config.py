@@ -19,16 +19,26 @@ class Config:
     wandb_project: str = "neuralese"
     wandb_entity: str = "josephmiller101"
     save_interval: int = 100
-    learning_rate: float = 1e-8
+    eval_interval: int = 1000
+    learning_rate: float = 1e-7
+    kl_weight: float = 10
 
     # Dataset and data loading
     dataset_name: str = "OpenAssistant/oasst2"
     dataset_split: str = "train"
     english_only: bool = False
     n_samples: int | None = None
-    batch_size: int = 4
+    batch_size: int = 2
     shuffle: bool = True
     max_length: int = 400
+
+    # Evaluation
+    mean_resid_min_toks: int = 10_000
+    mean_resid_cache_path: Path = repo_path_to_abs_path(
+        f".mean_resid_cache/{target_model_name.replace('/', '_')}"
+        + f"_{dataset_name.replace('/', '_')}_layer_{mid_layer}.pt"
+    )
+    measure_reconstruction_min_toks: int = 10_000
 
     @classmethod
     def from_repo_path_str(cls, repo_path_str: str, **kwargs: Any) -> "Config":
