@@ -17,3 +17,11 @@ uv sync
 ```bash
 pre-commit install
 ```
+
+## Successful training runs
+
+ - First 2 run overnight on Jan 11th 2025.
+https://wandb.ai/josephmiller101/neuralese/runs/nnohoevt/workspace?nw=nwuserjosephmiller101 (likely-plant-22)
+https://wandb.ai/josephmiller101/neuralese/runs/0mfg877c?nw=nwuserjosephmiller101 (chocolate-frost-23)
+
+ - Fixed some minor padding issues + playing with the KL weight.

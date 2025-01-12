@@ -164,6 +164,7 @@ def run_training(config: Config, device: str) -> Translator:
 
 if __name__ == "__main__":
     device = "cuda:6" if t.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
     datatime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     config = Config.from_repo_path_str(f".translators/{datatime_str}.pt")
     # config = SmallModelConfig.from_repo_path_str(f".translators/{datatime_str}.pt")

@@ -21,7 +21,7 @@ class Config:
     save_interval: int = 100
     eval_interval: int = 1000
     learning_rate: float = 1e-7
-    kl_weight: float = 10
+    kl_weight: float = 1
 
     # Dataset and data loading
     dataset_name: str = "OpenAssistant/oasst2"
