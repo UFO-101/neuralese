@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "datasets>=2.14.4",
+    "datasets==3.2",
     "einops>=0.8.0",
     "jaxtyping>=0.2.36",
     "numpy>=2.2.1",
@@ -29,6 +29,8 @@ dev = [
     "pyright>=1.1.391",
     "pytest>=8.3.4",
     "pytest-beartype>=0.1.1",
+    "tqdm>=4.67.1",
+    "wandb>=0.19.2",
 ]
 
 [tool.ruff]

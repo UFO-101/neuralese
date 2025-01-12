@@ -8,20 +8,39 @@ from torch.utils.data import Dataset as TorchDataset
 from transformer_lens import HookedTransformer
 from transformers import PreTrainedTokenizerBase
 
-from neuralese.generate_activations import load_model
+from neuralese.config import Config
+from neuralese.translator import load_model
 
 
-def load_and_filter_dataset(english_only: bool = True) -> Dataset:
+def load_and_filter_dataset(config: Config) -> Dataset:
     """Load the OpenAssistant dataset and optionally filter for English."""
-    ds = load_dataset("OpenAssistant/oasst2", streaming=False)
-    train = ds["train"]  # type: ignore
-    if english_only:
-        train = train.filter(lambda x: x["lang"] == "en")  # type: ignore
-    return train  # type: ignore
+    ds = load_dataset(config.dataset_name, streaming=False)
+
+    if config.dataset_name == "OpenAssistant/oasst2":
+        # The "OpenAssistant/oasst2"dataset only has a "train" and "validation" split
+        # So if dataset split is "train", use only the first 100,000 samples
+        # And if dataset split is "validation", use only the remaining samples
+        # And if dataset split is "test", use the validation split
+        if config.dataset_split == "train":
+            data = ds[config.dataset_split].select(range(100_000))  # type: ignore
+        elif config.dataset_split == "validation":
+            data = ds[config.dataset_split].select(  # type: ignore
+                range(100_000, len(ds[config.dataset_split]))  # type: ignore
+            )
+        else:
+            assert config.dataset_split == "test"
+            data = ds["validation"]  # type: ignore
+    else:
+        data = ds[config.dataset_split]  # type: ignore
+
+    if config.english_only:
+        data = data.filter(lambda x: x["lang"] == "en")  # type: ignore
+    return data  # type: ignore
 
 
-def sample_conversations(dataset: Dataset, n_samples: int) -> Dataset:
+def sample_conversations(dataset: Dataset, config: Config) -> Dataset:
     """Sample n unique conversation trees from the dataset."""
+    n_samples = len(dataset) if config.n_samples is None else config.n_samples
     unique_tree_ids = list(set(dataset["message_tree_id"]))[:n_samples]
     return dataset.filter(lambda x: x["message_tree_id"] in unique_tree_ids)
 
@@ -37,26 +56,18 @@ def group_messages_by_tree(dataset: Dataset) -> Dict[str, List[Dict[str, Any]]]:
     return tree_groups
 
 
-def load_and_group_data(n_samples: int = 3) -> Dict[str, List[Dict[str, Any]]]:
+def load_and_group_data(config: Config) -> Dict[str, List[Dict[str, Any]]]:
     """Load dataset and group messages by conversation tree.
 
     Args:
-        n_samples: Number of conversation trees to process
-
+        config: Configuration object
     Returns:
         Dictionary mapping tree_id to list of messages in that tree
     """
-    train = load_and_filter_dataset(english_only=True)
-    filtered_train = sample_conversations(train, n_samples)
+    train = load_and_filter_dataset(config)
+    filtered_train = sample_conversations(train, config)
     tree_groups = group_messages_by_tree(filtered_train)
     return tree_groups
-
-
-device = "cuda:5" if t.cuda.is_available() else "cpu"
-target_model = load_model("Qwen/Qwen2.5-0.5B-Instruct", device)
-
-tree_groups = load_and_group_data(n_samples=3)
-# %%
 
 
 def build_conversation(messages: List[Dict[str, Any]]) -> List[List[Dict[str, str]]]:
@@ -180,30 +191,27 @@ def collate_conversations(batch: List[Dict[str, Any]]) -> Dict[str, List[Any]]:
 def create_conversation_dataset(
     tree_conversations: Dict[str, List[List[Dict[str, str]]]],
     model: HookedTransformer,
-    batch_size: int = 4,
-    shuffle: bool = True,
-    num_workers: int = 0,
+    config: Config,
 ) -> DataLoader[Dict[str, Any]]:
     """Create a PyTorch DataLoader from conversation trees."""
     dataset = ConversationDataset(tree_conversations, model.tokenizer)
     return DataLoader(
         dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
+        batch_size=config.batch_size,
+        shuffle=config.shuffle,
         collate_fn=collate_conversations,
     )
 
 
 def tokenize_conversations(
-    batch: Dict[str, Any], tokenizer: Any, max_length: int = 2048
+    batch: Dict[str, Any], tokenizer: Any, config: Config
 ) -> Dict[str, t.Tensor]:
     """Tokenize a batch of conversations.
 
     Args:
         batch: Dictionary containing untokenized conversations
         tokenizer: Tokenizer to use for encoding
-        max_length: Maximum sequence length
+        config: Configuration object
 
     Returns:
         Dictionary containing tokenized inputs with attention masks
@@ -211,7 +219,7 @@ def tokenize_conversations(
     encoded = tokenizer(
         batch["text"],
         padding="longest",
-        max_length=max_length,
+        max_length=config.max_length,
         truncation=True,
         return_tensors="pt",
         return_attention_mask=True,
@@ -219,7 +227,7 @@ def tokenize_conversations(
 
     return {
         "input_ids": encoded.input_ids,
-        "attention_mask": encoded.attention_mask,
+        "attn_mask": encoded.attention_mask,
         "tree_id": batch["tree_id"],
         "raw_conversation": batch["raw_conversation"],
     }
@@ -235,13 +243,13 @@ def print_batch_details(batch: Dict[str, Any], target_model: HookedTransformer) 
     print("\n=== First Batch Details ===")
     print(f"Batch size: {len(batch['input_ids'])}")
     print(f"Input shape: {batch['input_ids'].shape}")
-    print(f"Attention mask shape: {batch['attention_mask'].shape}")
+    print(f"Attention mask shape: {batch['attn_mask'].shape}")
 
     # Print first sequence details
     print("\nFirst sequence in batch:")
-    print(f"Non-padding tokens: {batch['attention_mask'][0].sum()}")
+    print(f"Non-padding tokens: {batch['attn_mask'][0].sum()}")
     print("tokens:", batch["input_ids"][0])
-    print("mask values:", batch["attention_mask"][0])
+    print("mask values:", batch["attn_mask"][0])
 
     # Decode first few tokens
     tokenizer = target_model.tokenizer
@@ -253,9 +261,7 @@ def print_batch_details(batch: Dict[str, Any], target_model: HookedTransformer) 
 def process_conversations(
     tree_groups: Dict[str, List[Dict[str, Any]]],
     target_model: HookedTransformer,
-    batch_size: int = 4,
-    shuffle: bool = True,
-    num_workers: int = 0,
+    config: Config,
     print_examples: bool = False,
 ) -> DataLoader[Dict[str, Any]]:
     """Process conversations and create a DataLoader.
@@ -263,9 +269,7 @@ def process_conversations(
     Args:
         tree_groups: Dictionary mapping tree_id to list of messages
         target_model: Model containing the tokenizer
-        batch_size: Number of conversations per batch
-        shuffle: Whether to shuffle the dataset
-        num_workers: Number of worker processes for data loading
+        config: Configuration object
         print_examples: Whether to print example conversations and batch details
 
     Returns:
@@ -280,9 +284,7 @@ def process_conversations(
     dataloader = create_conversation_dataset(
         tree_conversations,
         target_model,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
+        config,
     )
 
     if print_examples:
@@ -296,15 +298,19 @@ def process_conversations(
 
         # Get and tokenize first batch
         raw_batch = next(iter(dataloader))
-        batch = tokenize_conversations(
-            raw_batch, target_model.tokenizer, max_length=2048
-        )
+        batch = tokenize_conversations(raw_batch, target_model.tokenizer, config)
         print_batch_details(batch, target_model)
 
     return dataloader
 
 
 if __name__ == "__main__":
-    dataloader = process_conversations(tree_groups, target_model, print_examples=True)
+    device = "cuda:5" if t.cuda.is_available() else "cpu"
+    config = Config.from_repo_path_str("", n_samples=4)
+    target_model = load_model(config.target_model_name, config.dtype, device)
+    tree_groups = load_and_group_data(config)
+    dataloader = process_conversations(
+        tree_groups, target_model, config, print_examples=True
+    )
 
 # %%

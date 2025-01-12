@@ -20,7 +20,7 @@ repos:
     rev: v2.3.0
     hooks:
       - id: codespell
-        args: [-L, "ans,fpr"]  # Allow extra words
+        args: [-L, "ans,fpr,projectin"]  # Allow extra words
         additional_dependencies:
           - tomli
         exclude: ^(datasets/sports-players/.*\.(txt|json))$
@@ -30,7 +30,7 @@ repos:
       name: pyright
       stages: [pre-commit]
       types: [python]
-      entry: pyright
+      entry: uv run pyright
       language: system
       pass_filenames: false
       always_run: true
