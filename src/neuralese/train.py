@@ -140,8 +140,7 @@ def run_training(config: Config, device: str) -> Translator:
         config.translator_model_name, config.dtype, device
     )
     target_model_dim = target_model.cfg.d_model
-    translator_model_dim = original_translator_model.cfg.d_model
-    translator = Translator(target_model_dim, translator_model_dim, config, device)
+    translator = Translator(target_model_dim, config, device)
 
     tree_groups = load_and_group_data(config)
     dataloader = process_conversations(tree_groups, target_model, config)

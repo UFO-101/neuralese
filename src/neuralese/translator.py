@@ -18,21 +18,20 @@ class Translator(nn.Module):
     def __init__(
         self,
         target_model_dim: int,
-        translator_model_dim: int,
         config: Config,
         device: str,
     ):
         super().__init__()
-        self.project_in: ProjectIn = ProjectIn(
-            target_model_dim, translator_model_dim, config, device
-        )
-        self.project_out: ProjectOut = ProjectOut(
-            target_model_dim, translator_model_dim, config, device
-        )
         self.transformer: HookedTransformer = load_model(
             config.translator_model_name, config.dtype, device
         )
         self.translator_model_dim = self.transformer.cfg.d_model
+        self.project_in: ProjectIn = ProjectIn(
+            target_model_dim, self.translator_model_dim, config, device
+        )
+        self.project_out: ProjectOut = ProjectOut(
+            target_model_dim, self.translator_model_dim, config, device
+        )
         self.target_model_dim = target_model_dim
         self.n_layers = self.transformer.cfg.n_layers
         self.config = config
@@ -40,6 +39,10 @@ class Translator(nn.Module):
     def forward_neuralese(
         self, input_neuralese_BSd: t.Tensor, attn_mask_BS: t.Tensor
     ) -> t.Tensor:
+        """
+        Run the neuralese through the transformer model, projecting it into the
+        translator model space and then back to the target model space.
+        """
         input_resid_BSD = self.project_in(input_neuralese_BSd)
         final_resid_BSD = self.transformer(
             input_resid_BSD,
@@ -51,14 +54,14 @@ class Translator(nn.Module):
         return output_neuralese_BSd
 
     def forward_tokens(self, *args: Any, **kwargs: Any) -> t.Tensor:
+        """Run normal tokens through the transformer model."""
         return self.transformer(*args, **kwargs)
 
     @classmethod
     def from_pretrained(cls, config: Config, device: str) -> "Translator":
         state_dict = t.load(config.save_path, weights_only=True, map_location=device)
         target_model_dim = state_dict["target_model_dim"]
-        translator_model_dim = state_dict["translator_model_dim"]
-        translator = cls(target_model_dim, translator_model_dim, config, device)
+        translator = cls(target_model_dim, config, device)
         translator.load_state_dict(state_dict, strict=False)
         return translator
 
@@ -67,7 +70,6 @@ class Translator(nn.Module):
         ensure_dir_exists(self.config.save_path.parent)
         state_dict = self.state_dict()
         state_dict["target_model_dim"] = self.target_model_dim
-        state_dict["translator_model_dim"] = self.translator_model_dim
         t.save(state_dict, self.config.save_path)
 
     @property
