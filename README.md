@@ -21,7 +21,10 @@ pre-commit install
 ## Successful training runs
 
  - First 2 run overnight on Jan 11th 2025.
-https://wandb.ai/josephmiller101/neuralese/runs/nnohoevt/workspace?nw=nwuserjosephmiller101 (likely-plant-22)
-https://wandb.ai/josephmiller101/neuralese/runs/0mfg877c?nw=nwuserjosephmiller101 (chocolate-frost-23)
+https://wandb.ai/josephmiller101/neuralese/runs/nnohoevt (likely-plant-22)
+https://wandb.ai/josephmiller101/neuralese/runs/0mfg877c (chocolate-frost-23)
 
  - Fixed some minor padding issues + playing with the KL weight.
+
+[FVU ~70%] (*current best) https://wandb.ai/josephmiller101/neuralese/runs/9cejwht0 (KL weight 0.01)
+[FVU ~73%] https://wandb.ai/josephmiller101/neuralese/runs/0pmufs9v (KL weight 1)
