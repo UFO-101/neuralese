@@ -29,7 +29,7 @@ def combined_prompt(
     assert target_model.cfg.device == device
     translator_chat_postfix_len = 5
     target_chat_postfix_len = 2
-    random_tok = 7653
+    random_tok = 13
 
     prefix = "Read the following:\n\n"
     messages = [{"role": "user", "content": prefix}]
@@ -127,12 +127,13 @@ def combined_prompt(
     print("answer:", answer)
 
 
+# %%
 if __name__ == "__main__":
     device = "cuda:7" if t.cuda.is_available() else "cpu"
-    config = Config.from_repo_path_str(".translators/2025-01-12_19-59-24.pt")
+    config = Config.from_repo_path_str(".translators/2025-01-13_16-32-40.pt")
     target_model = load_model(config.target_model_name, config.dtype, device)
     translator = Translator.from_pretrained(config, device)
     # translator = Translator(target_model.cfg.d_model, config, device)
-    combined_prompt(translator, target_model, config, debug=False)
 
-# %%
+    # %%
+    combined_prompt(translator, target_model, config, debug=False)
