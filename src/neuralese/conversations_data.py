@@ -24,8 +24,8 @@ def load_and_filter_dataset(config: Config) -> Dataset:
         if config.dataset_split == "train":
             data = ds[config.dataset_split].select(range(100_000))  # type: ignore
         elif config.dataset_split == "validation":
-            data = ds[config.dataset_split].select(  # type: ignore
-                range(100_000, len(ds[config.dataset_split]))  # type: ignore
+            data = ds["train"].select(  # type: ignore
+                range(100_000, len(ds["train"]))  # type: ignore
             )
         else:
             assert config.dataset_split == "test"
