@@ -137,7 +137,7 @@ def run_evaluation(config: Config, device: str) -> tuple[t.Tensor, t.Tensor, t.T
     target_model = load_model(config.target_model_name, config.dtype, device)
     translator = Translator.from_pretrained(config, device)
 
-    dataloader = get_data(config, target_model)
+    dataloader = get_data(config, target_model, "validation")
 
     mse_loss, mse_loss_normalized, fvu = measure_neuralese_reconstruction(
         dataloader=dataloader,
@@ -153,11 +153,11 @@ def run_evaluation(config: Config, device: str) -> tuple[t.Tensor, t.Tensor, t.T
 if __name__ == "__main__":
     device = "cuda:7" if t.cuda.is_available() else "cpu"
     # ".translators/2025-01-13_16-32-40.pt"
-    config = Config.from_repo_path_str(
-        ".translators/2025-01-14_03-58-04.pt", dataset_split="validation"
-    )
+    config = Config.from_repo_path_str(".translators/2025-01-14_03-58-04.pt")
     mse_loss, mse_loss_normalized, fvu = run_evaluation(config, device)
     print(f"MSE loss: {mse_loss:.4f}, MSE loss normalized: {mse_loss_normalized:.4f}")
     fvu_perc = fvu.item() * 100
     fve_perc = 100 - fvu_perc
     print(f"FVU: {fvu:.4f}, FVU Perc: {fvu_perc:.2f}%, FVE Perc: {fve_perc:.2f}%")
+
+# %%

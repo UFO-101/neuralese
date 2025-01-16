@@ -27,7 +27,6 @@ class Config:
 
     # Dataset and data loading
     dataset_name: str = "OpenAssistant/oasst2"
-    dataset_split: str = "train"
     english_only: bool = False
     n_samples: int | None = None
     batch_size: int = 2

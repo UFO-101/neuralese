@@ -82,7 +82,8 @@ def get_kl_div_loss(
 
 
 def train_translator(
-    dataloader: DataLoader[Dict[str, Any]],
+    train_dataloader: DataLoader[Dict[str, Any]],
+    val_dataloader: DataLoader[Dict[str, Any]],
     target: HookedTransformer,
     orig_translator: HookedTransformer,
     translator: Translator,
@@ -92,7 +93,7 @@ def train_translator(
 
     last_save = 0
     neuralese_loss, best_neura_loss = float("inf"), float("inf")
-    for i, batch in (pbar := tqdm(enumerate(dataloader))):
+    for i, batch in (pbar := tqdm(enumerate(train_dataloader))):
         neuralese_loss = get_neuralese_loss(batch, target, translator, config)
         optim.zero_grad()
         neuralese_loss.backward()
@@ -106,7 +107,7 @@ def train_translator(
 
         if i % config.eval_interval == 0 and i > 0:
             mse, mse_normalized, fvu = measure_neuralese_reconstruction(
-                dataloader, target, translator, config
+                val_dataloader, target, translator, config
             )
             wandb.log(
                 {
@@ -141,7 +142,8 @@ def run_training(config: Config, device: str) -> Translator:
     target_model_dim = target_model.cfg.d_model
     translator = Translator(target_model_dim, config, device)
 
-    dataloader = get_data(config, target_model)
+    train_dataloader = get_data(config, target_model, "train")
+    val_dataloader = get_data(config, target_model, "validation")
     wandb.init(
         project=config.wandb_project,
         entity=config.wandb_entity,
@@ -149,7 +151,8 @@ def run_training(config: Config, device: str) -> Translator:
     )
 
     trained_translator = train_translator(
-        dataloader=dataloader,
+        train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
         target=target_model,
         orig_translator=original_translator_model,
         translator=translator,

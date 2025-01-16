@@ -13,7 +13,7 @@ from neuralese.data.data_utils import print_batch_details, tokenize_batch
 from neuralese.translator import load_model
 
 
-def load_and_filter_dataset(config: Config) -> Dataset:
+def load_and_filter_dataset(config: Config, dataset_split: str) -> Dataset:
     """Load the OpenAssistant dataset and optionally filter for English."""
     ds = load_dataset(config.dataset_name, streaming=False)
 
@@ -22,17 +22,17 @@ def load_and_filter_dataset(config: Config) -> Dataset:
         # So if dataset split is "train", use only the first 100,000 samples
         # And if dataset split is "validation", use only the remaining samples
         # And if dataset split is "test", use the validation split
-        if config.dataset_split == "train":
-            data = ds[config.dataset_split].select(range(100_000))  # type: ignore
-        elif config.dataset_split == "validation":
+        if dataset_split == "train":
+            data = ds[dataset_split].select(range(100_000))  # type: ignore
+        elif dataset_split == "validation":
             data = ds["train"].select(  # type: ignore
                 range(100_000, len(ds["train"]))  # type: ignore
             )
         else:
-            assert config.dataset_split == "test"
+            assert dataset_split == "test"
             data = ds["validation"]  # type: ignore
     else:
-        data = ds[config.dataset_split]  # type: ignore
+        data = ds[dataset_split]  # type: ignore
 
     if config.english_only:
         data = data.filter(lambda x: x["lang"] == "en")  # type: ignore
@@ -57,7 +57,9 @@ def group_messages_by_tree(dataset: Dataset) -> Dict[str, List[Dict[str, Any]]]:
     return tree_groups
 
 
-def load_and_group_data(config: Config) -> Dict[str, List[Dict[str, Any]]]:
+def load_and_group_data(
+    config: Config, dataset_split: str
+) -> Dict[str, List[Dict[str, Any]]]:
     """Load dataset and group messages by conversation tree.
 
     Args:
@@ -65,7 +67,7 @@ def load_and_group_data(config: Config) -> Dict[str, List[Dict[str, Any]]]:
     Returns:
         Dictionary mapping tree_id to list of messages in that tree
     """
-    train = load_and_filter_dataset(config)
+    train = load_and_filter_dataset(config, dataset_split)
     filtered_train = sample_conversations(train, config)
     tree_groups = group_messages_by_tree(filtered_train)
     return tree_groups
@@ -254,7 +256,7 @@ if __name__ == "__main__":
     device = "cuda:7" if t.cuda.is_available() else "cpu"
     config = Config.from_repo_path_str("", n_samples=4)
     target_model = load_model(config.target_model_name, config.dtype, device)
-    tree_groups = load_and_group_data(config)
+    tree_groups = load_and_group_data(config, "train")
     dataloader = process_conversations(
         tree_groups, target_model, config, print_examples=True
     )

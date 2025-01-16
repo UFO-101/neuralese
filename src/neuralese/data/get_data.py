@@ -13,22 +13,24 @@ from neuralese.translator import load_model
 
 
 def get_data(
-    config: Config, target_model: HookedTransformer
+    config: Config, target_model: HookedTransformer, dataset_split: str
 ) -> DataLoader[Dict[str, Any]]:
     """Get data based on dataset type.
 
     Args:
         config: Configuration object
         target_model: Model containing the tokenizer
-
+        dataset_split: Dataset split to use
     Returns:
         DataLoader containing processed data
     """
     if config.dataset_name == "OpenAssistant/oasst2":
-        tree_groups = load_and_group_data(config)
-        return process_conversations(tree_groups, target_model, config)
+        tree_groups = load_and_group_data(config, dataset_split)
+        return process_conversations(
+            tree_groups, target_model, config, print_examples=False
+        )
     else:
-        return get_text_data(config, target_model)
+        return get_text_data(config, target_model, dataset_split)
 
 
 if __name__ == "__main__":
@@ -37,7 +39,7 @@ if __name__ == "__main__":
         "", n_samples=10, dataset_name="HuggingFaceFW/fineweb"
     )
     target_model = load_model(config.target_model_name, config.dtype, device)
-    dataloader = get_data(config, target_model)
+    dataloader = get_data(config, target_model, "train")
 
     # Test iteration
     n_print = 6

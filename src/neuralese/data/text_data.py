@@ -12,7 +12,7 @@ from neuralese.data.data_utils import print_batch_details, tokenize_batch
 from neuralese.translator import load_model
 
 
-def load_streaming_dataset(config: Config) -> IterableDataset:
+def load_streaming_dataset(config: Config, dataset_split: str) -> IterableDataset:
     """Load a dataset in streaming mode.
 
     For FineWeb, we use different Common Crawl snapshots for each split:
@@ -29,7 +29,7 @@ def load_streaming_dataset(config: Config) -> IterableDataset:
             "validation": "CC-MAIN-2022-27",
             "test": "CC-MAIN-2022-33",
         }
-        subset = subset_map[config.dataset_split]
+        subset = subset_map[dataset_split]
 
         ds = load_dataset(
             config.dataset_name,
@@ -42,7 +42,7 @@ def load_streaming_dataset(config: Config) -> IterableDataset:
         ds = load_dataset(
             config.dataset_name,
             streaming=True,
-            split=config.dataset_split,
+            split=dataset_split,
         )
 
     return ds  # type: ignore
@@ -162,7 +162,7 @@ def process_streaming_texts(
 
 
 def get_text_data(
-    config: Config, target_model: HookedTransformer
+    config: Config, target_model: HookedTransformer, dataset_split: str
 ) -> DataLoader[Dict[str, Any]]:
     """Load and process streaming text data.
 
@@ -173,7 +173,7 @@ def get_text_data(
     Returns:
         DataLoader containing processed texts
     """
-    dataset = load_streaming_dataset(config)
+    dataset = load_streaming_dataset(config, dataset_split)
     dataloader = process_streaming_texts(dataset, target_model, config)
     return dataloader
 
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         "", n_samples=10, dataset_name="HuggingFaceFW/fineweb", max_length=10000
     )
     target_model = load_model(config.target_model_name, config.dtype, device)
-    dataloader = get_text_data(config, target_model)
+    dataloader = get_text_data(config, target_model, "train")
 
     # Test iteration
     n_print = 6
