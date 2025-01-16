@@ -14,14 +14,15 @@ class Config:
     translator_model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
     mid_layer: int = 12
     dtype: t.dtype = t.float32
+    add_pos_embeddings: bool = True
 
     # Training
     wandb_project: str = "neuralese"
     wandb_entity: str = "josephmiller101"
     save_interval: int = 100
     eval_interval: int = 1000
-    learning_rate: float = 1e-7
-    kl_weight: float = 1
+    learning_rate: float = 1e-4
+    kl_weight: float = 0.01
 
     # Dataset and data loading
     dataset_name: str = "OpenAssistant/oasst2"

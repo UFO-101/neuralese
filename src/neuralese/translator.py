@@ -44,6 +44,15 @@ class Translator(nn.Module):
         translator model space and then back to the target model space.
         """
         input_resid_BSD = self.project_in(input_neuralese_BSd)
+        if (
+            self.config.add_pos_embeddings
+            and self.transformer.cfg.positional_embedding_type == "standard"
+        ):
+            fake_tokens_BS = t.zeros_like(input_resid_BSD.sum(dim=1))
+            pos_embed = self.transformer.pos_embed(
+                fake_tokens_BS, past_kv_offset=0, attention_mask=attn_mask_BS
+            )
+            input_resid_BSD += pos_embed
         final_resid_BSD = self.transformer(
             input_resid_BSD,
             start_at_layer=0,
