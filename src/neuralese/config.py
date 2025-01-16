@@ -14,7 +14,6 @@ class Config:
     translator_model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
     mid_layer: int = 12
     dtype: t.dtype = t.float32
-    add_pos_embeddings: bool = True
 
     # Training
     wandb_project: str = "neuralese"
