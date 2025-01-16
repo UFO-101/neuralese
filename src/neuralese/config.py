@@ -20,8 +20,8 @@ class Config:
     wandb_entity: str = "josephmiller101"
     save_interval: int = 100
     eval_interval: int = 1000
-    learning_rate: float = 1e-4
-    kl_weight: float = 0.01
+    learning_rate: float = 1e-5
+    kl_weight: float = 1e-5
     random_init_translator: bool = True
     random_init_mode: str = "gpt2"  # Corresponds to init_mode in TransformerLens
 

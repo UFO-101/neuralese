@@ -8,15 +8,44 @@ from torch.utils.data import IterableDataset as TorchIterableDataset
 from transformer_lens import HookedTransformer
 
 from neuralese.config import Config
-from neuralese.data.data_utils import print_batch_details, tokenize_conversations
+from neuralese.data.data_utils import print_batch_details, tokenize_batch
 from neuralese.translator import load_model
 
 
 def load_streaming_dataset(config: Config) -> IterableDataset:
-    """Load the FinWeb dataset in streaming mode."""
-    ds = load_dataset(config.dataset_name, streaming=True)
-    data = ds[config.dataset_split]  # type: ignore
-    return data  # type: ignore
+    """Load a dataset in streaming mode.
+
+    For FineWeb, we use different Common Crawl snapshots for each split:
+    - train: CC-MAIN-2022-21
+    - validation: CC-MAIN-2022-27
+    - test: CC-MAIN-2022-33
+
+    For other datasets, use their native splits.
+    """
+    if config.dataset_name == "HuggingFaceFW/fineweb":
+        # Map dataset splits to Common Crawl snapshots
+        subset_map = {
+            "train": "CC-MAIN-2022-21",
+            "validation": "CC-MAIN-2022-27",
+            "test": "CC-MAIN-2022-33",
+        }
+        subset = subset_map[config.dataset_split]
+
+        ds = load_dataset(
+            config.dataset_name,
+            subset,
+            streaming=True,
+            split="train",  # Each subset only has a train split
+        )
+    else:
+        # For other datasets, use their native splits
+        ds = load_dataset(
+            config.dataset_name,
+            streaming=True,
+            split=config.dataset_split,
+        )
+
+    return ds  # type: ignore
 
 
 class StreamingTextDataset(TorchIterableDataset):
@@ -122,7 +151,7 @@ def process_streaming_texts(
 
                 if i == 0:
                     # Show tokenization details for first batch
-                    tokenized_batch = tokenize_conversations(
+                    tokenized_batch = tokenize_batch(
                         batch, target_model.tokenizer, config
                     )
                     print_batch_details(tokenized_batch, target_model)
@@ -150,17 +179,25 @@ def get_text_data(
 
 
 if __name__ == "__main__":
-    device = "cuda:5" if t.cuda.is_available() else "cpu"
+    device = "cuda:7" if t.cuda.is_available() else "cpu"
     config = Config.from_repo_path_str(
-        "", n_samples=10, dataset_name="HuggingFaceFW/fineweb"
+        "", n_samples=10, dataset_name="HuggingFaceFW/fineweb", max_length=10000
     )
     target_model = load_model(config.target_model_name, config.dtype, device)
     dataloader = get_text_data(config, target_model)
 
     # Test iteration
+    n_print = 6
     for i, batch in enumerate(dataloader):
-        if i == 0:
-            print("\nFirst batch shape:", len(batch["text"]))
-            print("First text preview:", batch["text"][0][:100])
-        if i >= 2:
+        tokens = tokenize_batch(batch, target_model.tokenizer, config)
+        print("batch size:", len(batch["text"]))
+        print("First text preview:", batch["text"][0][:100])
+        print("tokens shape", tokens["input_ids"].shape)
+        padding_tokens = tokens["attn_mask"] == 0
+        print("Number of padding tokens in each row", padding_tokens.sum(dim=1))
+        print(
+            "Mean number of padding tokens in each row",
+            padding_tokens.sum(dim=1).float().mean(),
+        )
+        if i >= n_print - 1:
             break

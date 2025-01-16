@@ -10,7 +10,7 @@ from transformer_lens import HookedTransformer
 import wandb
 from neuralese.config import Config
 from neuralese.data.conversations_data import (
-    tokenize_conversations,
+    tokenize_batch,
 )
 from neuralese.data.get_data import get_data
 from neuralese.evaluate import measure_neuralese_reconstruction
@@ -24,7 +24,7 @@ def get_neuralese_loss(
     config: Config,
 ) -> t.Tensor:
     """MSE loss of the translator model predicting the next neuralese activation."""
-    target_tokenized = tokenize_conversations(batch, target.tokenizer, config)
+    target_tokenized = tokenize_batch(batch, target.tokenizer, config)
     target_tokens_BS = target_tokenized["input_ids"].to(translator.device)
     target_attn_mask_BS = target_tokenized["attn_mask"].to(translator.device)
 
@@ -59,7 +59,7 @@ def get_kl_div_loss(
     KL divergence loss between the original translator model and the translator model.
     This helps prevent catastrophic forgetting.
     """
-    translator_tokenized = tokenize_conversations(batch, translator.tokenizer, config)
+    translator_tokenized = tokenize_batch(batch, translator.tokenizer, config)
     translator_tokens_BS = translator_tokenized["input_ids"].to(translator.device)
     translatr_attn_mask_BS = translator_tokenized["attn_mask"].to(translator.device)
 
@@ -160,7 +160,7 @@ def run_training(config: Config, device: str) -> Translator:
 
 
 if __name__ == "__main__":
-    device = "cuda:6" if t.cuda.is_available() else "cpu"
+    device = "cuda:5" if t.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     datatime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     config = Config.from_repo_path_str(f".translators/{datatime_str}.pt")

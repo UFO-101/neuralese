@@ -7,7 +7,7 @@ from transformers import PreTrainedTokenizerBase
 from neuralese.config import Config
 
 
-def tokenize_conversations(
+def tokenize_batch(
     batch: Dict[str, Any], tokenizer: Any, config: Config
 ) -> Dict[str, t.Tensor]:
     """Tokenize a batch of conversations.
@@ -32,8 +32,6 @@ def tokenize_conversations(
     return {
         "input_ids": encoded.input_ids,
         "attn_mask": encoded.attention_mask,
-        "tree_id": batch["tree_id"],
-        "raw_conversation": batch["raw_conversation"],
     }
 
 

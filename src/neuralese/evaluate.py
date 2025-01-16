@@ -10,7 +10,7 @@ from tqdm import tqdm
 from transformer_lens import HookedTransformer
 
 from neuralese.config import Config
-from neuralese.data.data_utils import tokenize_conversations
+from neuralese.data.data_utils import tokenize_batch
 from neuralese.data.get_data import get_data
 from neuralese.file_utils import ensure_dir_exists
 from neuralese.translator import Translator, load_model
@@ -30,7 +30,7 @@ def mean_resid(
     input_sum_d = t.zeros(model.cfg.d_model, device=model.cfg.device)
     non_masked_count: t.Tensor = t.tensor(0, device=model.cfg.device)
     for batch in (pbar := tqdm(dataloader)):
-        translator_tokenized = tokenize_conversations(batch, model.tokenizer, cfg)
+        translator_tokenized = tokenize_batch(batch, model.tokenizer, cfg)
         tokens_BS = translator_tokenized["input_ids"].to(model.cfg.device)
         attn_mask_BS = translator_tokenized["attn_mask"].to(model.cfg.device)
 
@@ -71,7 +71,7 @@ def measure_neuralese_reconstruction(
     fvu_sum = t.tensor(0.0, dtype=config.dtype, device=target.cfg.device)
     non_masked_count = t.tensor(0, device=target.cfg.device)
     for batch in dataloader:
-        target_tokenized = tokenize_conversations(batch, target.tokenizer, config)
+        target_tokenized = tokenize_batch(batch, target.tokenizer, config)
         target_tokens_BS = target_tokenized["input_ids"].to(translator.device)
         target_attn_mask_BS = target_tokenized["attn_mask"].to(translator.device)
 

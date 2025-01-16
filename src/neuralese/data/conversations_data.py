@@ -9,7 +9,7 @@ from transformer_lens import HookedTransformer
 from transformers import PreTrainedTokenizerBase
 
 from neuralese.config import Config
-from neuralese.data.data_utils import print_batch_details, tokenize_conversations
+from neuralese.data.data_utils import print_batch_details, tokenize_batch
 from neuralese.translator import load_model
 
 
@@ -244,14 +244,14 @@ def process_conversations(
 
         # Get and tokenize first batch
         raw_batch = next(iter(dataloader))
-        batch = tokenize_conversations(raw_batch, target_model.tokenizer, config)
+        batch = tokenize_batch(raw_batch, target_model.tokenizer, config)
         print_batch_details(batch, target_model)
 
     return dataloader
 
 
 if __name__ == "__main__":
-    device = "cuda:5" if t.cuda.is_available() else "cpu"
+    device = "cuda:7" if t.cuda.is_available() else "cpu"
     config = Config.from_repo_path_str("", n_samples=4)
     target_model = load_model(config.target_model_name, config.dtype, device)
     tree_groups = load_and_group_data(config)
