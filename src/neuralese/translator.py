@@ -25,6 +25,10 @@ class Translator(nn.Module):
         self.transformer: HookedTransformer = load_model(
             config.translator_model_name, config.dtype, device
         )
+        if config.random_init_translator:
+            self.transformer.cfg.init_mode = config.random_init_mode
+            self.transformer.init_weights()
+
         self.translator_model_dim = self.transformer.cfg.d_model
         self.project_in: ProjectIn = ProjectIn(
             target_model_dim, self.translator_model_dim, config, device

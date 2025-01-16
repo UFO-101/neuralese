@@ -9,11 +9,10 @@ from transformer_lens import HookedTransformer
 
 import wandb
 from neuralese.config import Config
-from neuralese.conversations_data import (
-    load_and_group_data,
-    process_conversations,
+from neuralese.data.conversations_data import (
     tokenize_conversations,
 )
+from neuralese.data.get_data import get_data
 from neuralese.evaluate import measure_neuralese_reconstruction
 from neuralese.translator import Translator, load_model
 
@@ -105,7 +104,7 @@ def train_translator(
         kl_div_loss.backward()
         optim.step()
 
-        if i % config.eval_interval == 0:
+        if i % config.eval_interval == 0 and i > 0:
             mse, mse_normalized, fvu = measure_neuralese_reconstruction(
                 dataloader, target, translator, config
             )
@@ -142,8 +141,7 @@ def run_training(config: Config, device: str) -> Translator:
     target_model_dim = target_model.cfg.d_model
     translator = Translator(target_model_dim, config, device)
 
-    tree_groups = load_and_group_data(config)
-    dataloader = process_conversations(tree_groups, target_model, config)
+    dataloader = get_data(config, target_model)
     wandb.init(
         project=config.wandb_project,
         entity=config.wandb_entity,

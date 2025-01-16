@@ -22,6 +22,8 @@ class Config:
     eval_interval: int = 1000
     learning_rate: float = 1e-4
     kl_weight: float = 0.01
+    random_init_translator: bool = True
+    random_init_mode: str = "gpt2"  # Corresponds to init_mode in TransformerLens
 
     # Dataset and data loading
     dataset_name: str = "OpenAssistant/oasst2"

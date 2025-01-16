@@ -1,4 +1,5 @@
 # %%
+import datetime
 from typing import Any, Dict
 
 import torch as t
@@ -9,13 +10,11 @@ from tqdm import tqdm
 from transformer_lens import HookedTransformer
 
 from neuralese.config import Config
-from neuralese.conversations_data import (
-    load_and_group_data,
-    process_conversations,
-    tokenize_conversations,
-)
+from neuralese.data.data_utils import tokenize_conversations
+from neuralese.data.get_data import get_data
 from neuralese.file_utils import ensure_dir_exists
 from neuralese.translator import Translator, load_model
+from neuralese.visualize import visualize_vector_reconstruction
 
 
 def mean_resid(
@@ -62,6 +61,7 @@ def measure_neuralese_reconstruction(
     target: HookedTransformer,
     translator: Translator,
     config: Config,
+    visualize: bool = False,
 ) -> tuple[t.Tensor, t.Tensor, t.Tensor]:
     """MSE loss of the translator model predicting the next neuralese activation."""
     mean_resid_d = mean_resid(dataloader, target, config)
@@ -84,6 +84,18 @@ def measure_neuralese_reconstruction(
             # Run the neuralese through the translator model
             output_neuralese_BSd = translator.forward_neuralese(
                 input_neuralese_BSd, target_attn_mask_BS
+            )
+
+        if visualize:
+            datetime_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            visualize_vector_reconstruction(
+                input_neuralese_BSd,
+                output_neuralese_BSd,
+                n_vectors_cutoff=50,
+                vector_cutoff=100,
+                target_tokens_BS=target_tokens_BS,
+                target_model=target,
+                save_repo_path=f".visualizations/{datetime_str}.png",
             )
 
         # Next token loss on the neuralese (MSELoss)
@@ -125,14 +137,14 @@ def run_evaluation(config: Config, device: str) -> tuple[t.Tensor, t.Tensor, t.T
     target_model = load_model(config.target_model_name, config.dtype, device)
     translator = Translator.from_pretrained(config, device)
 
-    tree_groups = load_and_group_data(config)
-    dataloader = process_conversations(tree_groups, target_model, config)
+    dataloader = get_data(config, target_model)
 
     mse_loss, mse_loss_normalized, fvu = measure_neuralese_reconstruction(
         dataloader=dataloader,
         target=target_model,
         translator=translator,
         config=config,
+        visualize=True,
     )
 
     return mse_loss, mse_loss_normalized, fvu
@@ -140,7 +152,10 @@ def run_evaluation(config: Config, device: str) -> tuple[t.Tensor, t.Tensor, t.T
 
 if __name__ == "__main__":
     device = "cuda:7" if t.cuda.is_available() else "cpu"
-    config = Config.from_repo_path_str(".translators/2025-01-12_05-15-27")
+    # ".translators/2025-01-13_16-32-40.pt"
+    config = Config.from_repo_path_str(
+        ".translators/2025-01-14_03-58-04.pt", dataset_split="validation"
+    )
     mse_loss, mse_loss_normalized, fvu = run_evaluation(config, device)
     print(f"MSE loss: {mse_loss:.4f}, MSE loss normalized: {mse_loss_normalized:.4f}")
     fvu_perc = fvu.item() * 100
