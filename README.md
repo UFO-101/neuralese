@@ -32,3 +32,10 @@ https://wandb.ai/josephmiller101/neuralese/runs/0mfg877c (chocolate-frost-23)
  - Increased the learning rate to 1e-5
 
 [FVU ~42%] (*current best) https://wandb.ai/josephmiller101/neuralese/runs/hyq370vw (KL weight 0.01)
+
+
+## Ideas
+
+ - [Gurkenglas] Use a discriminator to train the next activation prediction.
+ - [Gurkenglas] Add a noise vector somewhere in the model to improve training.
+ - Condition on the next token embedding
