@@ -26,6 +26,7 @@ def load_streaming_dataset(config: Config, dataset_split: str) -> IterableDatase
         # Map dataset splits to Common Crawl snapshots
         subset_map = {
             "train": "CC-MAIN-2022-21",
+            "train_2": "CC-MAIN-2022-05",
             "validation": "CC-MAIN-2022-27",
             "test": "CC-MAIN-2022-33",
         }
