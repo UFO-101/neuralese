@@ -36,6 +36,9 @@ def get_neuralese_loss(
             stop_at_layer=config.mid_layer,
             attention_mask=target_attn_mask_BS,
         )
+        if config.loss_type == "ln_mse":
+            d_model = target.cfg.d_model
+            input_neuralese_BSd = F.layer_norm(input_neuralese_BSd, (d_model,))
     # Run the neuralese through the translator model
     output_neuralese_BSd = translator.forward_neuralese(
         input_neuralese_BSd, target_attn_mask_BS
@@ -129,6 +132,7 @@ def train_translator(
     optim = t.optim.Adam(translator.parameters(), lr=config.learning_rate)
     loss_fn = {
         "mse": get_neuralese_loss,
+        "ln_mse": get_neuralese_loss,
         "ln_dot_prod": get_ln_dot_prod_loss,
     }[config.loss_type]
 
