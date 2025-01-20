@@ -1,7 +1,10 @@
 # %%
+from datetime import datetime
 from typing import Any, Dict
 
 import torch as t
+import torch.nn.functional as F
+from einops import einsum
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformer_lens import HookedTransformer
@@ -12,7 +15,7 @@ from neuralese.data.conversations_data import (
     tokenize_batch,
 )
 from neuralese.data.get_data import get_data
-from neuralese.evaluate import measure_neuralese_reconstruction
+from neuralese.evaluate import measure_neuralese_recon
 from neuralese.translator import Translator, load_model
 
 
@@ -46,6 +49,41 @@ def get_neuralese_loss(
     next_token_mask_BS = target_attn_mask_BS[:, :-1] & target_attn_mask_BS[:, 1:]
     masked_next_token_loss_BS = next_token_loss_BS * next_token_mask_BS
     return masked_next_token_loss_BS.sum() / next_token_mask_BS.sum()
+
+
+def get_ln_dot_prod_loss(
+    batch: Dict[str, Any],
+    target: HookedTransformer,
+    translator: Translator,
+    config: Config,
+) -> t.Tensor:
+    """Dot product loss between the layernormed neuralese and the layernormed target."""
+    target_tokenized = tokenize_batch(batch, target.tokenizer, config)
+    target_tokens_BS = target_tokenized["input_ids"].to(translator.device)
+    target_attn_mask_BS = target_tokenized["attn_mask"].to(translator.device)
+    d_model = target.cfg.d_model
+
+    with t.no_grad():
+        lyrnrmd_target_BSd = target(
+            target_tokens_BS,
+            stop_at_layer=config.mid_layer,
+            attention_mask=target_attn_mask_BS,
+        )
+        lyrnrmd_target_BSd = F.layer_norm(lyrnrmd_target_BSd, (d_model,))
+    # Run the neuralese through the translator model
+    output_neuralese_BSd = translator.forward_neuralese(
+        lyrnrmd_target_BSd, target_attn_mask_BS
+    )
+    lyrnrmd_pred_BSd = F.layer_norm(output_neuralese_BSd, (d_model,))
+
+    # Dot product loss
+    dot_prod_BS = -1 * einsum(
+        lyrnrmd_pred_BSd[:, :-1, :], lyrnrmd_target_BSd[:, 1:, :], "b s d, b s d -> b s"
+    )
+    # Ignore token positions which are masked out or where the next token is masked out
+    next_token_mask_BS = target_attn_mask_BS[:, :-1] & target_attn_mask_BS[:, 1:]
+    masked_dot_prod_BS = dot_prod_BS * next_token_mask_BS
+    return masked_dot_prod_BS.sum() / next_token_mask_BS.sum()
 
 
 def get_kl_div_loss(
@@ -89,11 +127,15 @@ def train_translator(
     config: Config,
 ) -> Translator:
     optim = t.optim.Adam(translator.parameters(), lr=config.learning_rate)
+    loss_fn = {
+        "mse": get_neuralese_loss,
+        "ln_dot_prod": get_ln_dot_prod_loss,
+    }[config.loss_type]
 
     last_save = 0
     neuralese_loss, best_neura_loss = float("inf"), float("inf")
     for i, batch in (pbar := tqdm(enumerate(train_dataloader))):
-        neuralese_loss = get_neuralese_loss(batch, target, translator, config)
+        neuralese_loss = loss_fn(batch, target, translator, config)
         optim.zero_grad()
         neuralese_loss.backward()
         optim.step()
@@ -104,21 +146,11 @@ def train_translator(
         kl_div_loss.backward()
         optim.step()
 
+        logs = {"neuralese_loss": neuralese_loss, "kl_div_loss": kl_div_loss}
         if i % config.eval_interval == 0 and i > 0:
-            mse, mse_normalized, fvu = measure_neuralese_reconstruction(
-                val_dataloader, target, translator, config
-            )
-            wandb.log(
-                {
-                    "mse": mse,
-                    "mse_normalized": mse_normalized,
-                    "fvu": fvu,
-                    "neuralese_loss": neuralese_loss,
-                    "kl_div_loss": kl_div_loss,
-                }
-            )
-        else:
-            wandb.log({"neuralese_loss": neuralese_loss, "kl_div_loss": kl_div_loss})
+            evals = measure_neuralese_recon(val_dataloader, target, translator, config)
+            logs.update(evals)
+        wandb.log(logs)
 
         if i - last_save >= config.save_interval and neuralese_loss < best_neura_loss:
             translator.save_trained()
@@ -168,10 +200,9 @@ def run_training(config: Config, device: str) -> Translator:
 
 
 if __name__ == "__main__":
-    device = "cuda:7" if t.cuda.is_available() else "cpu"
+    device = "cuda:6" if t.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
-    # datatime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # config = Config.from_repo_path_str(f".translators/{datatime_str}.pt")
-    config = Config.from_repo_path_str(".translators/2025-01-16_19-31-52.pt")
+    datatime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    config = Config.from_repo_path_str(f".translators/{datatime_str}.pt")
     # config = SmallModelConfig.from_repo_path_str(f".translators/{datatime_str}.pt")
     train_translator = run_training(config, device)

@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import torch as t
 
@@ -10,10 +10,11 @@ from neuralese.file_utils import repo_path_to_abs_path
 @dataclass(frozen=True)
 class Config:
     save_path: Path
-    target_model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    target_model_name: str = "Qwen/Qwen2.5-0.5B"
     translator_model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
     mid_layer: int = 12
     dtype: t.dtype = t.float32
+    loss_type: Literal["mse", "ln_dot_prod"] = "ln_dot_prod"
 
     # Training
     wandb_project: str = "neuralese"
@@ -22,11 +23,11 @@ class Config:
     eval_interval: int = 1000
     learning_rate: float = 1e-5
     kl_weight: float = 1e-5
-    random_init_translator: bool = True
+    random_init_translator: bool = False
     random_init_mode: str = "gpt2"  # Corresponds to init_mode in TransformerLens
 
     # Dataset and data loading
-    dataset_name: str = "OpenAssistant/oasst2"
+    dataset_name: str = "HuggingFaceFW/fineweb"
     english_only: bool = False
     n_samples: int | None = None
     batch_size: int = 2

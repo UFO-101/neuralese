@@ -40,6 +40,9 @@ def mean_resid(
                 stop_at_layer=cfg.mid_layer,
                 attention_mask=attn_mask_BS,
             )
+            if cfg.loss_type == "ln_dot_prod":
+                d_model = model.cfg.d_model
+                input_neuralese_BSd = F.layer_norm(input_neuralese_BSd, (d_model,))
         attn_mask_BSd = repeat(attn_mask_BS, "B S -> B S d", d=model.cfg.d_model)
         masked_neuralese_BSd = input_neuralese_BSd * attn_mask_BSd
         input_sum_d += masked_neuralese_BSd.sum(dim=(0, 1))
@@ -56,19 +59,20 @@ def mean_resid(
     return mean_vector
 
 
-def measure_neuralese_reconstruction(
+def measure_neuralese_recon(
     dataloader: DataLoader[Dict[str, Any]],
     target: HookedTransformer,
     translator: Translator,
     config: Config,
     visualize: bool = False,
-) -> tuple[t.Tensor, t.Tensor, t.Tensor]:
+) -> dict[str, t.Tensor]:
     """MSE loss of the translator model predicting the next neuralese activation."""
     mean_resid_d = mean_resid(dataloader, target, config)
 
     mse_loss_sum = t.tensor(0.0, dtype=config.dtype, device=target.cfg.device)
     mse_loss_normalizd_sum = t.tensor(0.0, dtype=config.dtype, device=target.cfg.device)
     fvu_sum = t.tensor(0.0, dtype=config.dtype, device=target.cfg.device)
+    cos_sim_sum = t.tensor(0.0, dtype=config.dtype, device=target.cfg.device)
     non_masked_count = t.tensor(0, device=target.cfg.device)
     for batch in dataloader:
         target_tokenized = tokenize_batch(batch, target.tokenizer, config)
@@ -85,6 +89,10 @@ def measure_neuralese_reconstruction(
             output_neuralese_BSd = translator.forward_neuralese(
                 input_neuralese_BSd, target_attn_mask_BS
             )
+            if config.loss_type == "ln_dot_prod":
+                d_model = target.cfg.d_model
+                input_neuralese_BSd = F.layer_norm(input_neuralese_BSd, (d_model,))
+                output_neuralese_BSd = F.layer_norm(output_neuralese_BSd, (d_model,))
 
         if visualize:
             datetime_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -111,35 +119,41 @@ def measure_neuralese_reconstruction(
             mean_resid_BSd, input_neuralese_BSd[:, 1:, :], reduction="none"
         ).mean(dim=-1)
         next_tok_fvu_BS = next_tok_mse_BS / variance_BS
+        next_tok_cos_sim_BS = t.nn.functional.cosine_similarity(
+            input_neuralese_BSd[:, 1:, :], output_neuralese_BSd[:, :-1, :], dim=-1
+        )
 
         # Ignore token positions which are masked out or where the next token is masked out
         next_token_mask_BS = target_attn_mask_BS[:, :-1] & target_attn_mask_BS[:, 1:]
         next_tok_mse_BS = next_tok_mse_BS * next_token_mask_BS
         next_tok_mse_normalized_BS = next_tok_mse_normalized_BS * next_token_mask_BS
         next_tok_fvu_BS = next_tok_fvu_BS * next_token_mask_BS
+        next_tok_cos_sim_BS = next_tok_cos_sim_BS * next_token_mask_BS
 
         mse_loss_sum += next_tok_mse_BS.sum()
         mse_loss_normalizd_sum += next_tok_mse_normalized_BS.sum()
         fvu_sum += next_tok_fvu_BS.sum()
+        cos_sim_sum += next_tok_cos_sim_BS.sum()
         non_masked_count += next_token_mask_BS.sum()
 
         if non_masked_count.sum() > config.measure_reconstruction_min_toks:
             break
 
-    avg_mse_loss = mse_loss_sum / non_masked_count
-    avg_mse_loss_normalized = mse_loss_normalizd_sum / non_masked_count
-    avg_fvu = fvu_sum / non_masked_count
+    return {
+        "mse_loss": mse_loss_sum / non_masked_count,
+        "mse_loss_normalized": mse_loss_normalizd_sum / non_masked_count,
+        "fvu": fvu_sum / non_masked_count,
+        "cos_sim": cos_sim_sum / non_masked_count,
+    }
 
-    return avg_mse_loss, avg_mse_loss_normalized, avg_fvu
 
-
-def run_evaluation(config: Config, device: str) -> tuple[t.Tensor, t.Tensor, t.Tensor]:
+def run_evaluation(config: Config, device: str) -> dict[str, t.Tensor]:
     target_model = load_model(config.target_model_name, config.dtype, device)
     translator = Translator.from_pretrained(config, device)
 
     dataloader = get_data(config, target_model, "validation")
 
-    mse_loss, mse_loss_normalized, fvu = measure_neuralese_reconstruction(
+    results = measure_neuralese_recon(
         dataloader=dataloader,
         target=target_model,
         translator=translator,
@@ -147,17 +161,18 @@ def run_evaluation(config: Config, device: str) -> tuple[t.Tensor, t.Tensor, t.T
         visualize=True,
     )
 
-    return mse_loss, mse_loss_normalized, fvu
+    return results
 
 
 if __name__ == "__main__":
-    device = "cuda:7" if t.cuda.is_available() else "cpu"
+    device = "cuda:5" if t.cuda.is_available() else "cpu"
     # ".translators/2025-01-13_16-32-40.pt"
     config = Config.from_repo_path_str(".translators/2025-01-14_03-58-04.pt")
-    mse_loss, mse_loss_normalized, fvu = run_evaluation(config, device)
-    print(f"MSE loss: {mse_loss:.4f}, MSE loss normalized: {mse_loss_normalized:.4f}")
-    fvu_perc = fvu.item() * 100
-    fve_perc = 100 - fvu_perc
-    print(f"FVU: {fvu:.4f}, FVU Perc: {fvu_perc:.2f}%, FVE Perc: {fve_perc:.2f}%")
+    results = run_evaluation(config, device)
+    for key, value in results.items():
+        print(f"{key}: {value:.4f}")
+
+    fvu_perc = (fvu := results["fvu"].item()) * 100
+    print(f"FVU Perc: {fvu_perc:.2f}%, FVE Perc: {100 - fvu_perc:.2f}%")
 
 # %%
