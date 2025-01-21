@@ -40,7 +40,7 @@ def mean_resid(
                 stop_at_layer=cfg.mid_layer,
                 attention_mask=attn_mask_BS,
             )
-            if cfg.loss_type == "ln_dot_prod":
+            if cfg.layernorm_neuralese:
                 d_model = model.cfg.d_model
                 input_neuralese_BSd = F.layer_norm(input_neuralese_BSd, (d_model,))
         attn_mask_BSd = repeat(attn_mask_BS, "B S -> B S d", d=model.cfg.d_model)
@@ -86,10 +86,10 @@ def measure_neuralese_recon(
                 attention_mask=target_attn_mask_BS,
             )
             # Run the neuralese through the translator model
-            output_neuralese_BSd = translator.forward_neuralese(
+            output_neuralese_BSd = translator.neuralese_to_neuralese(
                 input_neuralese_BSd, target_attn_mask_BS
             )
-            if config.loss_type == "ln_dot_prod":
+            if config.layernorm_neuralese:
                 d_model = target.cfg.d_model
                 input_neuralese_BSd = F.layer_norm(input_neuralese_BSd, (d_model,))
                 output_neuralese_BSd = F.layer_norm(output_neuralese_BSd, (d_model,))
@@ -167,7 +167,7 @@ def run_evaluation(config: Config, device: str) -> dict[str, t.Tensor]:
 if __name__ == "__main__":
     device = "cuda:5" if t.cuda.is_available() else "cpu"
     # ".translators/2025-01-13_16-32-40.pt"
-    config = Config.from_repo_path_str(".translators/2025-01-14_03-58-04.pt")
+    config = Config.from_repo_path_str(".translators/2025-01-16_19-31-52.pt")
     results = run_evaluation(config, device)
     for key, value in results.items():
         print(f"{key}: {value:.4f}")

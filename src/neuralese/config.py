@@ -6,28 +6,33 @@ import torch as t
 
 from neuralese.file_utils import repo_path_to_abs_path
 
+LossType = Literal["mse", "dot_prod", "neuralese_to_orig_logit", "distill_orig_logit"]
+
 
 @dataclass(frozen=True)
 class Config:
     save_path: Path
-    target_model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    target_model_name: str = "Qwen/Qwen2.5-0.5B"
     translator_model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
     mid_layer: int = 12
     dtype: t.dtype = t.float32
-    loss_type: Literal["mse", "ln_mse", "ln_dot_prod"] = "ln_mse"
+    loss_types: tuple[tuple[LossType, float], ...] = (  # Immutable dict-like type
+        ("neuralese_to_orig_logit", 1.0),
+        ("distill_orig_logit", 1e-1),
+    )
+    layernorm_neuralese: bool = True  # Before this was added, layernorm was not applied
 
     # Training
     wandb_project: str = "neuralese"
     wandb_entity: str = "josephmiller101"
     save_interval: int = 100
     eval_interval: int = 1000
-    learning_rate: float = 1e-5
-    kl_weight: float = 1e-5
+    learning_rate: float = 5e-6
     random_init_translator: bool = False
     random_init_mode: str = "gpt2"  # Corresponds to init_mode in TransformerLens
 
     # Dataset and data loading
-    dataset_name: str = "OpenAssistant/oasst2"
+    dataset_name: str = "HuggingFaceFW/fineweb"
     english_only: bool = False
     n_samples: int | None = None
     batch_size: int = 2
@@ -53,5 +58,5 @@ class Config:
 
 @dataclass(frozen=True)
 class SmallModelConfig(Config):
-    translator_model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    translator_model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
     batch_size: int = 1

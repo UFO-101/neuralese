@@ -40,7 +40,7 @@ class Translator(nn.Module):
         self.n_layers = self.transformer.cfg.n_layers
         self.config = config
 
-    def forward_neuralese(
+    def neuralese_to_neuralese(
         self, input_neuralese_BSd: t.Tensor, attn_mask_BS: t.Tensor
     ) -> t.Tensor:
         """
@@ -59,6 +59,23 @@ class Translator(nn.Module):
         )
         output_neuralese_BSd = self.project_out(final_resid_BSD)
         return output_neuralese_BSd
+
+    def neuralese_to_logits(
+        self, input_neuralese_BSd: t.Tensor, attn_mask_BS: t.Tensor
+    ) -> t.Tensor:
+        """
+        Run the neuralese through the transformer model, projecting it into the
+        translator model space and then run the model as normal.
+        """
+        # Rotary embeddings are applied part of attention, so we don't need to add them
+        assert self.transformer.cfg.positional_embedding_type == "rotary"
+
+        input_resid_BSD = self.project_in(input_neuralese_BSd)
+        return self.transformer(
+            input_resid_BSD,
+            start_at_layer=0,
+            attention_mask=attn_mask_BS,
+        )
 
     def forward_tokens(self, *args: Any, **kwargs: Any) -> t.Tensor:
         """Run normal tokens through the transformer model."""

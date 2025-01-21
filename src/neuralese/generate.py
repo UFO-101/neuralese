@@ -3,6 +3,7 @@
 from typing import Any
 
 import torch as t
+import torch.nn.functional as F
 from jaxtyping import Float
 from transformer_lens import HookedTransformer
 from transformer_lens.hook_points import HookPoint
@@ -93,6 +94,10 @@ def combined_prompt(
         -(neuralese_len + target_chat_postfix_len), -target_chat_postfix_len
     )
     neuralese_1Sd = neuralese_1Sd[:, neuralese_target_slice, :]
+    if cfg.layernorm_neuralese:
+        d_model = target_model.cfg.d_model
+        neuralese_1Sd = F.layer_norm(neuralese_1Sd, (d_model,))
+
     if debug:
         print(
             "neuralese chat toks decoded:",
@@ -129,8 +134,8 @@ def combined_prompt(
 
 # %%
 if __name__ == "__main__":
-    device = "cuda:7" if t.cuda.is_available() else "cpu"
-    config = Config.from_repo_path_str(".translators/2025-01-13_16-32-40.pt")
+    device = "cuda:5" if t.cuda.is_available() else "cpu"
+    config = Config.from_repo_path_str(".translators/2025-01-20_19-38-32.pt")
     target_model = load_model(config.target_model_name, config.dtype, device)
     translator = Translator.from_pretrained(config, device)
     # translator = Translator(target_model.cfg.d_model, config, device)
