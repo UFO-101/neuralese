@@ -1,5 +1,4 @@
 # %%
-from datetime import datetime
 from typing import Any, Dict
 
 import torch as t
@@ -64,7 +63,7 @@ def train_translator(
     return translator
 
 
-def run_training(config: Config, device: str) -> Translator:
+def run_training(config: Config, device: str, log_wandb: bool = True) -> Translator:
     target_model = load_model(config.target_model_name, config.dtype, device)
     original_translator_model = load_model(
         config.translator_model_name, config.dtype, device
@@ -80,11 +79,12 @@ def run_training(config: Config, device: str) -> Translator:
         train_dataloader = get_data(config, target_model, "train")
 
     val_dataloader = get_data(config, target_model, "validation")
-    wandb.init(
-        project=config.wandb_project,
-        entity=config.wandb_entity,
-        config=config.to_dict(),
-    )
+    if log_wandb:  # This is required to run more than one iteration
+        wandb.init(
+            project=config.wandb_project,
+            entity=config.wandb_entity,
+            config=config.to_dict(),
+        )
 
     trained_translator = train_translator(
         train_dataloader=train_dataloader,
@@ -99,9 +99,10 @@ def run_training(config: Config, device: str) -> Translator:
 
 
 if __name__ == "__main__":
-    device = "cuda:3" if t.cuda.is_available() else "cpu"
+    device = "cuda:6" if t.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
-    datatime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    config = Config.from_repo_path_str(f".translators/{datatime_str}.pt")
+    # datatime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    # config = Config.from_repo_path_str(f".translators/{datatime_str}.pt")
+    config = Config.from_repo_path_str(".translators/2025-01-21_03-07-10.pt")
     # config = SmallModelConfig.from_repo_path_str(f".translators/{datatime_str}.pt")
     train_translator = run_training(config, device)

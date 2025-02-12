@@ -67,6 +67,9 @@ def process_neuralese_text(
         Tensor of shape (1, seq_len, d_model) containing the intermediate activations
     """
     device = target_model.cfg.device
+    weight_vector = target_model.blocks[cfg.mid_layer].mlp.W_in.T[0]
+    print("weight_vector.shape:", weight_vector.shape)
+    return weight_vector.unsqueeze(0).unsqueeze(0)
 
     # Apply chat template if requested
     if use_chat_template:
@@ -317,7 +320,7 @@ def combined_prompt(
 
 # %%
 if __name__ == "__main__":
-    device = "cuda:5" if t.cuda.is_available() else "cpu"
+    device = "cuda:7" if t.cuda.is_available() else "cpu"
     config = Config.from_repo_path_str(".translators/2025-01-21_03-07-10.pt")
     target_model = load_model(config.target_model_name, config.dtype, device)
     translator = Translator.from_pretrained(config, device)
@@ -328,10 +331,10 @@ if __name__ == "__main__":
         translator,
         target_model,
         config,
-        prefix="Read the following text:\n\n",
+        prefix="The following are the following:\n\n",
         postfix="\n\nExplain it in your own words.",
-        neuralese_text="European Data Protection Supervisor",
-        neuralese_to_translate=" Supervisor",
+        neuralese_text="Harry Potter is a series of seven fantasy novels written by J.K. Rowling",
+        neuralese_to_translate=" of seven",
     )
 
 # %%

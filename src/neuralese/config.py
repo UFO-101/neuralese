@@ -17,17 +17,17 @@ class Config:
     mid_layer: int = 12
     dtype: t.dtype = t.float32
     loss_types: tuple[tuple[LossType, float], ...] = (  # Immutable dict-like type
-        ("neuralese_to_orig_logit", 1.0),
-        ("distill_orig_logit", 1e-1),
+        ("distill_orig_logit", 1.0),
+        ("neuralese_to_orig_logit", 0.1),
     )
     layernorm_neuralese: bool = True  # Before this was added, layernorm was not applied
 
     # Training
     wandb_project: str = "neuralese"
     wandb_entity: str = "josephmiller101"
-    save_interval: int = 100
+    save_interval: int = 200
     eval_interval: int = 1000
-    learning_rate: float = 5e-6
+    learning_rate: float = 1e-6
     random_init_translator: bool = False
     random_init_mode: str = "gpt2"  # Corresponds to init_mode in TransformerLens
 
