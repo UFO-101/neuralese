@@ -7,9 +7,12 @@ from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset as TorchIterableDataset
 from transformer_lens import HookedTransformer
 
-from neuralese.config import Config
-from neuralese.data.data_utils import print_batch_details, tokenize_batch
-from neuralese.translator import load_model
+from neuralese.next_act_prediction.config import Config
+from neuralese.next_act_prediction.data.data_utils import (
+    print_batch_details,
+    tokenize_batch,
+)
+from neuralese.next_act_prediction.translator import load_model
 
 
 def load_streaming_dataset(config: Config, dataset_split: str) -> IterableDataset:

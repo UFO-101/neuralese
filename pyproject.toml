@@ -10,10 +10,12 @@ requires-python = ">=3.10"
 dependencies = [
     "datasets==3.2",
     "einops>=0.8.0",
+    "fairseq2==0.3.0rc1",
     "jaxtyping>=0.2.36",
-    "numpy>=2.2.1",
+    "numpy",
     "pillow>=11.1.0",
-    "torch>=2.5.1",
+    "sonar-space>=0.3.2",
+    "torch==2.5.1",
     "transformer-lens==2.11",
 ]
 
@@ -47,3 +49,6 @@ beartype_packages = "neuralese"
 [tool.pyright]
 reportMissingParameterType = true
 reportUnknownParameterType = true
+
+[[tool.uv.index]]
+url = "https://fair.pkg.atmeta.com/fairseq2/whl/rc/pt2.5.1/cu124"

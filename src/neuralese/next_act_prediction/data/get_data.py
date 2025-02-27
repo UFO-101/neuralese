@@ -5,11 +5,14 @@ import torch as t
 from torch.utils.data import DataLoader
 from transformer_lens import HookedTransformer
 
-from neuralese.config import Config
-from neuralese.data.conversations_data import load_and_group_data, process_conversations
-from neuralese.data.data_utils import tokenize_batch
-from neuralese.data.text_data import get_text_data
-from neuralese.translator import load_model
+from neuralese.next_act_prediction.config import Config
+from neuralese.next_act_prediction.data.conversations_data import (
+    load_and_group_data,
+    process_conversations,
+)
+from neuralese.next_act_prediction.data.data_utils import tokenize_batch
+from neuralese.next_act_prediction.data.text_data import get_text_data
+from neuralese.next_act_prediction.translator import load_model
 
 
 def get_data(

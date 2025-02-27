@@ -4,7 +4,7 @@ import torch as t
 from transformer_lens import HookedTransformer
 from transformers import PreTrainedTokenizerBase
 
-from neuralese.config import Config
+from neuralese.next_act_prediction.config import Config
 
 
 def tokenize_batch(

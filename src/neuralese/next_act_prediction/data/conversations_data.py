@@ -8,9 +8,12 @@ from torch.utils.data import Dataset as TorchDataset
 from transformer_lens import HookedTransformer
 from transformers import PreTrainedTokenizerBase
 
-from neuralese.config import Config
-from neuralese.data.data_utils import print_batch_details, tokenize_batch
-from neuralese.translator import load_model
+from neuralese.next_act_prediction.config import Config
+from neuralese.next_act_prediction.data.data_utils import (
+    print_batch_details,
+    tokenize_batch,
+)
+from neuralese.next_act_prediction.translator import load_model
 
 
 def load_and_filter_dataset(config: Config, dataset_split: str) -> Dataset:

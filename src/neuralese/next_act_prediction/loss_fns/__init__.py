@@ -4,9 +4,9 @@ from typing import Any, Callable, Dict
 import torch as t
 from transformer_lens import HookedTransformer
 
-from neuralese.config import Config, LossType
-from neuralese.data.conversations_data import tokenize_batch
-from neuralese.translator import Translator
+from neuralese.next_act_prediction.config import Config, LossType
+from neuralese.next_act_prediction.data.conversations_data import tokenize_batch
+from neuralese.next_act_prediction.translator import Translator
 
 from .distill_orig_logits import get_distill_orig_logits_loss
 from .neuralese_dot_prod import get_dot_prod_loss

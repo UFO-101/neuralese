@@ -3,3 +3,4 @@ wandb/
 .translators/
 .mean_resid_cache/
 .visualizations/
+.cache/

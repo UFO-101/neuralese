@@ -7,11 +7,14 @@ from tqdm import tqdm
 from transformer_lens import HookedTransformer
 
 import wandb
-from neuralese.config import Config
-from neuralese.data.get_data import get_data
-from neuralese.evaluate import measure_neuralese_recon
-from neuralese.loss_fns import LOSS_FN_MAP, get_orig_translator_logprobs
-from neuralese.translator import Translator, load_model
+from neuralese.next_act_prediction.config import Config
+from neuralese.next_act_prediction.data.get_data import get_data
+from neuralese.next_act_prediction.evaluate import measure_neuralese_recon
+from neuralese.next_act_prediction.loss_fns import (
+    LOSS_FN_MAP,
+    get_orig_translator_logprobs,
+)
+from neuralese.next_act_prediction.translator import Translator, load_model
 
 
 def train_translator(

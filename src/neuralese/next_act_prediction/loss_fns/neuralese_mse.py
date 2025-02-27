@@ -4,11 +4,11 @@ import torch as t
 import torch.nn.functional as F
 from transformer_lens import HookedTransformer
 
-from neuralese.config import Config
-from neuralese.data.conversations_data import (
+from neuralese.next_act_prediction.config import Config
+from neuralese.next_act_prediction.data.conversations_data import (
     tokenize_batch,
 )
-from neuralese.translator import Translator
+from neuralese.next_act_prediction.translator import Translator
 
 
 def get_neuralese_loss(

@@ -4,7 +4,7 @@ import torch as t
 import torch.nn as nn
 from transformer_lens import HookedTransformer
 
-from neuralese.config import Config
+from neuralese.next_act_prediction.config import Config
 from neuralese.file_utils import ensure_dir_exists
 
 

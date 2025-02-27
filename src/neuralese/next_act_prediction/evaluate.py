@@ -9,12 +9,12 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformer_lens import HookedTransformer
 
-from neuralese.config import Config
-from neuralese.data.data_utils import tokenize_batch
-from neuralese.data.get_data import get_data
+from neuralese.next_act_prediction.config import Config
+from neuralese.next_act_prediction.data.data_utils import tokenize_batch
+from neuralese.next_act_prediction.data.get_data import get_data
 from neuralese.file_utils import ensure_dir_exists
-from neuralese.translator import Translator, load_model
-from neuralese.visualize import visualize_vector_reconstruction
+from neuralese.next_act_prediction.translator import Translator, load_model
+from neuralese.next_act_prediction.visualize import visualize_vector_reconstruction
 
 
 def mean_resid(

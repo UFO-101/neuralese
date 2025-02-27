@@ -9,8 +9,8 @@ from transformer_lens import HookedTransformer
 from transformer_lens.hook_points import HookPoint
 from transformers import PreTrainedTokenizerBase
 
-from neuralese.config import Config
-from neuralese.translator import Translator, load_model
+from neuralese.next_act_prediction.config import Config
+from neuralese.next_act_prediction.translator import Translator, load_model
 
 DEBUG = False
 
