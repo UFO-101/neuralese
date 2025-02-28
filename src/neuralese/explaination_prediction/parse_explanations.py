@@ -1,17 +1,16 @@
 # %%
-import json
-import os
 import gzip
+import json
+import random
+import urllib.request
 from enum import Enum
+from io import BytesIO
 from pathlib import Path
 from typing import Dict
-import urllib.request
-from io import BytesIO
-import random
 
 from neuralese.file_utils import (
-    repo_path_to_abs_path,
     ensure_dir_exists,
+    repo_path_to_abs_path,
 )
 
 
@@ -71,7 +70,7 @@ def download_and_cache_explanations(
     # Process each batch file
     for batch_file in batch_files:
         file_url = f"{base_url}{batch_file}"
-        
+
         try:
             with urllib.request.urlopen(file_url) as response:
                 # Read the response content
@@ -86,22 +85,26 @@ def download_and_cache_explanations(
                             item = json.loads(line)
                             # Extract index and description
                             if "index" in item and "description" in item:
-                                index_to_description[int(item["index"])] = item["description"]
+                                index_to_description[int(item["index"])] = item[
+                                    "description"
+                                ]
                         except json.JSONDecodeError:
                             print(f"Error parsing JSON line in {batch_file}")
                             continue
-            
+
             print(f"Successfully downloaded and processed {batch_file}")
-            
+
         except Exception as e:
             print(f"Error downloading {file_url}: {e}")
             continue
 
-    print(f"Successfully downloaded {successful_downloads} out of {len(batch_files)} batch files")
+    print(
+        f"Successfully downloaded {successful_downloads} out of {len(batch_files)} batch files"
+    )
     print(f"Processed {len(index_to_description)} explanations")
 
     if len(index_to_description) == 0:
-        raise ValueError(f"Could not extract any explanations from the batch files")
+        raise ValueError("Could not extract any explanations from the batch files")
 
     # Cache the parsed dictionary
     with open(cache_path, "w") as f:
@@ -123,11 +126,8 @@ if __name__ == "__main__":
 
     # Print a few examples
     print(f"Total explanations: {len(explanations)}")
-    for i, (index, description) in enumerate(list(explanations.items())[:5]):
-        print(f"Index {index}: {description}")
-    
+
     # Print a few random examples
-    # Note: the indices are not contiguous, so we have to sample from the set of keys
     for i in range(5):
         index = random.choice(list(explanations.keys()))
         print(f"Index {index}: {explanations[index]}")
