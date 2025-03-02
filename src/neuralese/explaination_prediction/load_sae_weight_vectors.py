@@ -1,30 +1,30 @@
 # %%
-import json
+import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional
 
+import numpy as np
 import torch
 from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file
+from safetensors.torch import load_file, save_file
 
 from neuralese.file_utils import (
     ensure_dir_exists,
+    repo_path_to_abs_path,
 )
 
 
-def download_sae_decoder_weights(
+def sae_decoder_weights(
     repo_id: str = "google/gemma-scope-2b-pt-res",
     layer: int = 12,
     width: str = "1m",
     l0_threshold: str = "107",
-    cache_dir: Path = Path(".cache/sae_weights"),
-    force_download: bool = False,
-) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    cache_dir: Path = repo_path_to_abs_path(".cache/sae_weights"),
+) -> torch.Tensor:
     """
     Download SAE weights from Hugging Face and extract only the decoder matrix.
 
-    This function downloads the full SAE weights but only keeps the decoder matrix in memory,
-    saving disk space after the initial download.
+    Download the weight directly into RAM and then save only the decoder matrix to disk.
 
     Args:
         repo_id: The Hugging Face repository ID
@@ -40,54 +40,51 @@ def download_sae_decoder_weights(
         - metadata: Dictionary with metadata about the SAE
     """
     ensure_dir_exists(cache_dir)
-
-    # The weights are stored in a safetensors file
-    weights_file = (
-        f"layer_{layer}_width_{width}_average_l0_{l0_threshold}_sae_weights.safetensors"
+    cache_path = (
+        cache_dir / f"layer_{layer}_width_{width}_average_l0_{l0_threshold}.safetensors"
     )
-    weights_path: Path = cache_dir / weights_file
+    if cache_path.exists():
+        print(f"Loading decoder weights from {cache_path}")
+        return load_file(cache_path)["decoder_weights"]
 
-    # The config is stored in a JSON file
-    config_file = f"layer_{layer}_width_{width}_average_l0_{l0_threshold}_cfg.json"
-    config_path: Path = cache_dir / config_file
+    temp_dir = repo_path_to_abs_path(".cache/sae_weights")
+    ensure_dir_exists(temp_dir)
 
-    # Download the weights file
-    local_weights_path = hf_hub_download(
-        repo_id=repo_id,
-        filename=weights_path.as_posix(),
-        cache_dir=cache_dir,
-        force_download=force_download,
+    # Construct the file path within the huggingface repository
+    hf_path = f"layer_{layer}/width_{width}/average_l0_{l0_threshold}/params.npz"
+
+    # Download the weights file to the temp directory
+    print(f"Downloading weights from {repo_id} to {temp_dir}")
+    weights_file = hf_hub_download(
+        repo_id=repo_id, filename=hf_path, cache_dir=temp_dir
     )
+    print(f"Weights file downloaded to {weights_file}")
 
-    # Download the config file
-    local_config_path = hf_hub_download(
-        repo_id=repo_id,
-        filename=config_path.as_posix(),
-        cache_dir=cache_dir,
-        force_download=force_download,
-    )
-
-    state_dict = load_file(local_weights_path)
+    # Load the weights
+    print(f"Loading weights from {weights_file}")
+    state_dict = np.load(weights_file, mmap_mode="r")
+    print(f"Weights loaded from {weights_file}")
+    print(f"State dict keys: {state_dict.keys()}")
     decoder_weights = state_dict["W_dec"]
+    print(f"Decoder weights shape: {decoder_weights.shape}")
 
-    with open(local_config_path, "r") as f:
-        config = json.load(f)
+    # Save the decoder weights to the cache directory
+    print(f"Saving decoder weights to {cache_path}")
+    decoder_weights_torch = torch.from_numpy(decoder_weights)
+    save_file(
+        {
+            "decoder_weights": decoder_weights_torch,
+        },
+        cache_path,
+    )
+    print(f"Decoder weights saved to {cache_path}")
 
-    # Create metadata dictionary
-    metadata = {
-        "config": config,
-        "layer": layer,
-        "width": width,
-        "l0_threshold": l0_threshold,
-        "repo_id": repo_id,
-        "decoder_shape": decoder_weights.shape,
-    }
+    # Delete the temp file
+    print(f"Deleting temp file {weights_file}")
+    os.remove(weights_file)
+    print("Temp file deleted")
 
-    # # Add some useful info from the state dict
-    # if "b_dec" in state_dict:
-    #     metadata["b_dec"] = state_dict["b_dec"]
-
-    return decoder_weights, metadata
+    return decoder_weights
 
 
 def get_feature_vectors(
@@ -112,7 +109,7 @@ def get_feature_vectors(
 
 if __name__ == "__main__":
     # Example usage
-    decoder, metadata = download_sae_decoder_weights(
+    decoder = sae_decoder_weights(
         repo_id="google/gemma-scope-2b-pt-res",
         layer=12,
         width="1m",
@@ -120,7 +117,6 @@ if __name__ == "__main__":
     )
 
     print(f"Decoder shape: {decoder.shape}")
-    print(f"Metadata keys: {metadata.keys()}")
 
     # Get the first 5 feature vectors
     features = get_feature_vectors(decoder, torch.tensor(range(5)))

@@ -18,12 +18,12 @@ class ActivationSite(Enum):
     RESIDUAL = "res"
 
 
-def download_and_cache_explanations(
+def load_explanations(
     model_name: str,
     layer: int,
     activation_site: ActivationSite = ActivationSite.RESIDUAL,
     n_features: str = "65k",
-    num_batches: int = 150,  # Number of batch files to try, starting from 0
+    num_batches: int = 754,  # Number of batch files to try, starting from 0
     cache_dir: Path = repo_path_to_abs_path(".cache/explanations"),
 ) -> Dict[int, str]:
     """
@@ -48,6 +48,7 @@ def download_and_cache_explanations(
     cache_path = cache_dir / cache_filename
 
     # Check if the parsed dictionary is already cached
+    print(f"Checking if {cache_path} exists")
     if cache_path.exists():
         print(f"Loading cached parsed explanations from {cache_path}")
         with open(cache_path, "r") as f:
@@ -116,7 +117,7 @@ def download_and_cache_explanations(
 
 if __name__ == "__main__":
     # Example usage
-    explanations = download_and_cache_explanations(
+    explanations = load_explanations(
         model_name="gemma-2-2b",
         layer=12,
         activation_site=ActivationSite.RESIDUAL,
